@@ -9,9 +9,9 @@ This repository contains the official codebase, pre-trained weights, and evaluat
 
 ## 🚀 TL;DR
 
-> We identify and formalize two severe optimization pathologies in multi-timescale RL: **Surrogate Objective Hacking** (exploiting short-term shaping rewards at the expense of the true objective) and the **Paradox of Temporal Uncertainty** (irreversible myopic degeneration caused by gradient-free variance routing).
-> 
-> To overcome these fundamental vulnerabilities, we introduce **Target Decoupling**, a novel architectural and algorithmic intervention that disentangles representation learning from temporal routing, allowing the agent to align with the true long-term objective (γ = 0.999) without collapsing into short-term behavioral traps.
+We identify and formalize two severe optimization pathologies in multi-timescale RL: **Surrogate Objective Hacking** (exploiting short-term shaping rewards at the expense of the true objective) and the **Paradox of Temporal Uncertainty** (irreversible myopic degeneration caused by gradient-free variance routing).
+
+To overcome these fundamental vulnerabilities, we introduce **Target Decoupling**, a novel architectural and algorithmic intervention that disentangles representation learning from temporal routing, allowing the agent to align with the true long-term objective (γ = 0.999) without collapsing into short-term behavioral traps.
 
 ## 🎥 Visual Proof: The Ablation Journey
 
