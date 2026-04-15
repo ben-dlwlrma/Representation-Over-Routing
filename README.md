@@ -3,7 +3,7 @@
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/ZENODO.19588769.svg)](https://doi.org/10.5281/ZENODO.19588769)
+[![DOI](https://img.shields.io/badge/DOI-10.5281%2FZENODO.19588769-blue.svg)](https://doi.org/10.5281/ZENODO.19588769)
 
 This repository contains the official codebase, pre-trained weights, and evaluation environments for the preprint: **"Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO"**. We provide a minimal, standalone reproducible example (MRE) using standard MLPs on `LunarLander-v2` to demonstrate the pathology of surrogate hacking and our proposed solution.
 
@@ -98,6 +98,8 @@ Evaluating the pre-trained models is designed to be frictionless.
    python 5_evaluate_seeds_plot.py
    ```
 
+*Note: You can run any of the standalone `X_*.py` scripts to train the given stage from scratch.*
+
 ## 📊 Statistical Significance
 
 To rigorously validate our claims, we evaluate the Target Decoupling architecture against the Baseline over multiple random seeds (n=5). The Target Decoupling agent consistently solves the environment with minimal variance, easily eliminating the failure modes and escaping hovering local optima.
@@ -105,8 +107,6 @@ To rigorously validate our claims, we evaluate the Target Decoupling architectur
 <div align="center">
   <img src="docs/seed_comparison_plot.png" alt="Seed Comparison Plot" width="80%">
 </div>
-
-*Note: You can run any of the standalone `X_*.py` scripts to train the given stage from scratch.*
 
 ## 📖 Citation
 
