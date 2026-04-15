@@ -3,7 +3,7 @@
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org/)
-[![DOI](https://zenodo.org/badge/DOI/10.5281/ZENODO.19511655.svg)](https://doi.org/10.5281/ZENODO.19511655)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/ZENODO.19588769.svg)](https://doi.org/10.5281/ZENODO.19588769)
 
 This repository contains the official codebase, pre-trained weights, and evaluation environments for the preprint: **"Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO"**. We provide a minimal, standalone reproducible example (MRE) using standard MLPs on `LunarLander-v2` to demonstrate the pathology of surrogate hacking and our proposed solution.
 
@@ -54,6 +54,7 @@ The repository is structured to perfectly mirror our 4-stage ablation study. Eac
 ├── 2_surrogate_hacking_attention.py   # Stage 2: Introduction of multi-timescale collapse
 ├── 3_temporal_paradox_variance.py     # Stage 3: Attempted variance reduction
 ├── 4_target_decoupling_final.py       # Stage 4: Proposed Target Decoupling architecture
+├── 5_evaluate_seeds_plot.py           # Multi-seed evaluation and plotting script
 ├── record_1_baseline.py               # Evaluation script for Stage 1
 ├── record_2_surrogate.py              # Evaluation script for Stage 2
 ├── record_3_paradox.py                # Evaluation script for Stage 3
@@ -64,6 +65,7 @@ The repository is structured to perfectly mirror our 4-stage ablation study. Eac
 ├── weights_stage_4.pth                # Pre-trained weights for Target Decoupling
 └── docs/                              # Assets (GIFs, etc.)
     ├── baseline_hovering.gif
+    ├── seed_comparison_plot.png       # Learning curve comparison across 5 seeds
     ├── surrogate_hacking_crash.gif
     ├── temporal_paradox_wandering.gif
     └── target_decoupling_landing.gif
@@ -90,6 +92,20 @@ Evaluating the pre-trained models is designed to be frictionless.
    python record_1_baseline.py
    ```
 
+4. **Multi-Seed Evaluation**
+   Run the full comparison across 5 random seeds to reproduce the statistical significance plots:
+   ```bash
+   python 5_evaluate_seeds_plot.py
+   ```
+
+## 📊 Statistical Significance
+
+To rigorously validate our claims, we evaluate the Target Decoupling architecture against the Baseline over multiple random seeds (n=5). The Target Decoupling agent consistently solves the environment with minimal variance, easily eliminating the failure modes and escaping hovering local optima.
+
+<div align="center">
+  <img src="docs/seed_comparison_plot.png" alt="Seed Comparison Plot" width="80%">
+</div>
+
 *Note: You can run any of the standalone `X_*.py` scripts to train the given stage from scratch.*
 
 ## 📖 Citation
@@ -97,15 +113,17 @@ Evaluating the pre-trained models is designed to be frictionless.
 If you find this code or our insights useful in your research, please consider citing our work:
 
 ```bibtex
-@misc{sunRepresentationRoutingOvercoming2026a,
+@misc{sunRepresentationRoutingOvercoming2026b,
   title = {Representation over {{Routing}}: {{Overcoming Surrogate Hacking}} in {{Multi-Timescale PPO}}},
   shorttitle = {Representation over {{Routing}}},
   author = {Sun, Jing},
   year = 2026,
   month = apr,
   publisher = {Zenodo},
-  doi = {10.5281/ZENODO.19511655},
+  doi = {10.5281/ZENODO.19588769},
+  urldate = {2026-04-15},
+  archiveprefix = {Zenodo},
   copyright = {Creative Commons Attribution 4.0 International},
-  keywords = {Deep RL,Multi-Timescale,PPO,Surrogate Hacking,Target Decoupling,Temporal Credit Assignment}
+  keywords = {actor-critic,Deep Learning,Deep RL,Multi-Timescale,PPO,reinforcement,surrogate-hacking,Target Decoupling,Temporal Credit Assignment}
 }
 ```
