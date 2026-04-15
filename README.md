@@ -65,7 +65,7 @@ The repository is structured to perfectly mirror our 4-stage ablation study. Eac
 ├── weights_stage_4.pth                # Pre-trained weights for Target Decoupling
 └── docs/                              # Assets (GIFs, etc.)
     ├── baseline_hovering.gif
-    ├── seed_comparison_plot.png       # Learning curve comparison across 5 seeds
+    ├── seed_comparison_plot.png
     ├── surrogate_hacking_crash.gif
     ├── temporal_paradox_wandering.gif
     └── target_decoupling_landing.gif
