@@ -3,7 +3,8 @@
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org/)
-[![DOI](https://img.shields.io/badge/DOI-10.5281%2FZENODO.19588769-blue.svg)](https://doi.org/10.5281/ZENODO.19588769)
+[![arXiv](https://img.shields.io/badge/arXiv-2604.13517-b31b1b.svg)](https://arxiv.org/abs/2604.13517)
+[![DOI](https://img.shields.io/badge/DOI-10.48550%2FarXiv.2604.13517-blue.svg)](https://doi.org/10.48550/arXiv.2604.13517)
 
 This repository contains the official codebase, pre-trained weights, and evaluation environments for the preprint: **"Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO"**. We provide a minimal, standalone reproducible example (MRE) using standard MLPs on `LunarLander-v2` to demonstrate the pathology of surrogate hacking and our proposed solution.
 
@@ -118,12 +119,10 @@ If you find this code or our insights useful in your research, please consider c
   shorttitle = {Representation over {{Routing}}},
   author = {Sun, Jing},
   year = 2026,
-  month = apr,
-  publisher = {Zenodo},
-  doi = {10.5281/ZENODO.19588769},
-  urldate = {2026-04-15},
-  archiveprefix = {Zenodo},
+  publisher = {arXiv},
+  doi = {10.48550/ARXIV.2604.13517},
+  urldate = {2026-04-16},
   copyright = {Creative Commons Attribution 4.0 International},
-  keywords = {actor-critic,Deep Learning,Deep RL,Multi-Timescale,PPO,reinforcement,surrogate-hacking,Target Decoupling,Temporal Credit Assignment}
+  keywords = {Artificial Intelligence (cs.AI),FOS: Computer and information sciences,Machine Learning (cs.LG)}
 }
 ```
