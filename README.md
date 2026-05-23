@@ -5,6 +5,8 @@
 [![PyTorch](https://img.shields.io/badge/PyTorch-%23EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org/)
 [![arXiv](https://img.shields.io/badge/arXiv-2604.13517-b31b1b.svg)](https://arxiv.org/abs/2604.13517)
 [![DOI](https://img.shields.io/badge/DOI-10.48550%2FarXiv.2604.13517-blue.svg)](https://doi.org/10.48550/arXiv.2604.13517)
+[![Hugging Face Model](https://img.shields.io/badge/Hugging%20Face-Model-yellow?logo=huggingface)](https://huggingface.co/ben-dlwlrma/Representation-Over-Routing)
+[![Hugging Face Space](https://img.shields.io/badge/Hugging%20Face-Space-yellow?logo=huggingface)](https://huggingface.co/spaces/ben-dlwlrma/Representation-Over-Routing-Demo)
 
 This repository contains the official codebase, pre-trained weights, and evaluation environments for the preprint: **"Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO"**. We provide a minimal, standalone reproducible example (MRE) using standard MLPs on `LunarLander-v2` to demonstrate the pathology of surrogate hacking and our proposed solution.
 
