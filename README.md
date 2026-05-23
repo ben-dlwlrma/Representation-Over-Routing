@@ -14,17 +14,15 @@ This repository contains the official codebase, pre-trained weights, and evaluat
 
 **Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO**
 
-[![arXiv](https://img.shields.io/badge/arXiv-2604.13517-b31b1b.svg)](https://arxiv.org/abs/2604.13517)
-
 arXiv: https://arxiv.org/abs/2604.13517
 
-## 🚀 TL;DR
+## TL;DR
 
 We identify and formalize two severe optimization pathologies in multi-timescale RL: **Surrogate Objective Hacking** (exploiting short-term shaping rewards at the expense of the true objective) and the **Paradox of Temporal Uncertainty** (irreversible myopic degeneration caused by gradient-free variance routing).
 
 To overcome these fundamental vulnerabilities, we introduce **Target Decoupling**, a novel architectural and algorithmic intervention that disentangles representation learning from temporal routing, allowing the agent to align with the true long-term objective (γ = 0.999) without collapsing into short-term behavioral traps.
 
-## 🎥 Visual Proof: The Ablation Journey
+## Visual Proof: The Ablation Journey
 
 The core contribution of this work is isolating and systematically solving the pathologies of multi-timescale learning. The comparison between **Stage 1** and **Stage 4** is particularly striking: while the baseline is paralyzed by the fear of crashing and greedy hoarding of small centering rewards, our decoupled agent acts with true foresight.
 
@@ -55,7 +53,7 @@ The core contribution of this work is isolating and systematically solving the p
   </tr>
 </table>
 
-## 📂 Repository Structure
+## Repository Structure
 
 The repository is structured to perfectly mirror our 4-stage ablation study. Each stage is completely standalone, strictly utilizing standard MLPs to ensure clarity and ease of reproducibility.
 
@@ -82,7 +80,7 @@ The repository is structured to perfectly mirror our 4-stage ablation study. Eac
     └── target_decoupling_landing.gif
 ```
 
-## 🛠️ Quick Start
+## Quick Start
 
 Evaluating the pre-trained models is designed to be frictionless.
 
@@ -111,7 +109,7 @@ Evaluating the pre-trained models is designed to be frictionless.
 
 *Note: You can run any of the standalone `X_*.py` scripts to train the given stage from scratch.*
 
-## 📊 Statistical Significance
+## Statistical Significance
 
 To rigorously validate our claims, we evaluate the Target Decoupling architecture against the Baseline over multiple random seeds (n=5). The Target Decoupling agent consistently solves the environment with minimal variance, easily eliminating the failure modes and escaping hovering local optima.
 
@@ -119,7 +117,7 @@ To rigorously validate our claims, we evaluate the Target Decoupling architectur
   <img src="docs/seed_comparison_plot.png" alt="Seed Comparison Plot" width="80%">
 </div>
 
-## 📖 Citation
+## Citation
 
 If you find this code or our insights useful in your research, please consider citing our work:
 
