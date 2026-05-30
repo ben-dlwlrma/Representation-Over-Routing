@@ -1,0 +1,32 @@
+# Local editor and Python cache
+.vscode/
+__pycache__/
+*.py[cod]
+
+# Experiment outputs
+runs/
+
+# Manuscript sources and LaTeX build artifacts
+arXiv/
+Formatting_Instructions_For_NeurIPS_2026/
+*.aux
+*.bbl
+*.blg
+*.fdb_latexmk
+*.fls
+*.log
+*.out
+*.synctex.gz
+*.toc
+
+# Archived exploratory scripts
+Archived/
+
+# Hugging Face Space is a separate repository
+Representation-Over-Routing-Demo/
+
+# Local Space/model packaging files
+app.py
+requirements_hf.txt
+README_model.md
+README_space.md

@@ -1,7 +1,9 @@
 """
-2_surrogate_hacking_attention.py: Multi-timescale PPO.
-Demonstrates Surrogate Objective Hacking via a state-dependent attention mechanism 
-exposed to the policy gradients.
+6_ablation_auxiliary_variance.py: Auxiliary-head variance ablation.
+
+Runs target-decoupled PPO on LunarLander-v2 while varying the auxiliary
+short-horizon critic loss weight. The actor update always uses only the
+long-horizon advantage at index 3, gamma=0.999.
 """
 
 import time
@@ -20,15 +22,16 @@ from torch.utils.tensorboard import SummaryWriter
 
 @dataclass
 class Args:
-    exp_name: str = "surrogate_hacking_attention"
+    exp_name: str = "ablation_auxiliary_variance"
     seed: int = 1
+    lambda_aux: float = 0.0
     torch_deterministic: bool = True
     cuda: bool = True
 
     env_id: str = "LunarLander-v2"
     num_envs: int = 8
 
-    total_timesteps: int = 1000000
+    total_timesteps: int = 1_000_000
     num_steps: int = 256
 
     learning_rate: float = 2.5e-4
@@ -37,6 +40,7 @@ class Args:
     gammas: List[float] = field(default_factory=lambda: [0.5, 0.9, 0.99, 0.999])
     num_gammas: int = 4
     gae_lambda: float = 0.95
+    target_gamma_idx: int = 3
 
     num_minibatches: int = 8
     update_epochs: int = 10
@@ -53,8 +57,6 @@ class Args:
 
 
 def make_env(env_id, idx, seed):
-    """Return a thunk that creates a single gymnasium environment."""
-
     def thunk():
         env = gym.make(env_id)
         env = gym.wrappers.RecordEpisodeStatistics(env)
@@ -66,7 +68,6 @@ def make_env(env_id, idx, seed):
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
-    """Orthogonal initialisation for a linear layer."""
     nn.init.orthogonal_(layer.weight, std)
     nn.init.constant_(layer.bias, bias_const)
     return layer
@@ -89,18 +90,9 @@ class ActorCritic(nn.Module):
             nn.Tanh(),
             layer_init(nn.Linear(64, act_dim), std=0.01),
         )
-        # [EVOLUTION: SURROGATE HACKING] Differentiable attention mechanism added to route multi-timescale signals.
-        self.attention = nn.Sequential(
-            layer_init(nn.Linear(obs_dim, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, num_gammas), std=0.01),
-        )
 
     def get_value(self, x):
         return self.critic(x)
-
-    def get_attention_weights(self, x):
-        return torch.softmax(self.attention(x), dim=-1)
 
     def get_action_and_value(self, x, action=None):
         logits = self.actor(x)
@@ -110,13 +102,16 @@ class ActorCritic(nn.Module):
         return action, dist.log_prob(action), dist.entropy(), self.critic(x)
 
 
-def train_one_seed(args: Args):
+def run_training(args: Args):
     assert len(args.gammas) == args.num_gammas, "len(args.gammas) must equal args.num_gammas"
+    assert args.target_gamma_idx == 3, "actor update target must remain index 3"
+    assert args.gammas[args.target_gamma_idx] == 0.999, "target index 3 must correspond to gamma=0.999"
+
     args.batch_size = args.num_envs * args.num_steps
     args.minibatch_size = args.batch_size // args.num_minibatches
     args.num_updates = args.total_timesteps // args.batch_size
 
-    run_name = f"surrogate_hacking_seed_{args.seed}"
+    run_name = f"ablation_variance_lambda_{args.lambda_aux}_seed_{args.seed}"
 
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -124,7 +119,7 @@ def train_one_seed(args: Args):
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     device = torch.device("cuda" if args.cuda and torch.cuda.is_available() else "cpu")
-    print(f"run={run_name}, device={device}")
+    print(f"run={run_name} device={device}")
 
     envs = gym.vector.SyncVectorEnv(
         [make_env(args.env_id, i, args.seed) for i in range(args.num_envs)]
@@ -133,7 +128,9 @@ def train_one_seed(args: Args):
 
     obs_dim = np.array(envs.single_observation_space.shape).prod()
     act_dim = envs.single_action_space.n
-    gamma_tensor = torch.tensor(args.gammas, dtype=torch.float32, device=device).view(1, args.num_gammas)
+    gamma_tensor = torch.tensor(args.gammas, dtype=torch.float32, device=device).view(
+        1, args.num_gammas
+    )
 
     agent = ActorCritic(obs_dim, act_dim, args.num_gammas).to(device)
     optimizer = optim.Adam(agent.parameters(), lr=args.learning_rate, eps=1e-5)
@@ -164,6 +161,9 @@ def train_one_seed(args: Args):
     next_obs, _ = envs.reset(seed=args.seed)
     next_obs = torch.tensor(next_obs, dtype=torch.float32, device=device)
     next_done = torch.zeros(args.num_envs, dtype=torch.float32, device=device)
+
+    target_gamma_idx = 3
+    short_gamma_indices = [idx for idx in range(args.num_gammas) if idx != target_gamma_idx]
 
     for update in range(1, args.num_updates + 1):
         if args.anneal_lr:
@@ -197,8 +197,8 @@ def train_one_seed(args: Args):
                         if isinstance(ep_length, np.ndarray):
                             ep_length = ep_length.item()
                         print(
-                            f"seed={args.seed}, global_step={global_step}, "
-                            f"episodic_return={ep_return:.1f}"
+                            f"lambda_aux={args.lambda_aux}, seed={args.seed}, "
+                            f"global_step={global_step}, episodic_return={ep_return:.1f}"
                         )
                         writer.add_scalar("charts/episodic_return", ep_return, global_step)
                         writer.add_scalar("charts/episodic_length", ep_length, global_step)
@@ -234,10 +234,12 @@ def train_one_seed(args: Args):
         b_ret = returns.reshape(-1, args.num_gammas)
         b_val = val_buf.reshape(-1, args.num_gammas)
 
+        with torch.no_grad():
+            b_adv_aggregated = b_adv[:, target_gamma_idx]
+            long_advantage_variance = torch.var(b_adv[:, target_gamma_idx])
+
         b_inds = np.arange(args.batch_size)
         clipfracs = []
-        hack_rates = []
-        attention_entropies = []
 
         for epoch in range(args.update_epochs):
             np.random.shuffle(b_inds)
@@ -246,44 +248,40 @@ def train_one_seed(args: Args):
                 mb = b_inds[start:end]
 
                 _, newlogp, entropy, newval = agent.get_action_and_value(b_obs[mb], b_act[mb])
-                attention_weights = agent.get_attention_weights(b_obs[mb])
                 logratio = newlogp - b_logp[mb]
                 ratio = logratio.exp()
 
                 with torch.no_grad():
                     clipfracs.append(((ratio - 1.0).abs() > args.clip_coef).float().mean().item())
-                    mb_adv_for_diag = b_adv[mb]
-                    hack_rate = (
-                        attention_weights.argmax(dim=1) == mb_adv_for_diag.argmax(dim=1)
-                    ).float().mean()
-                    attention_entropy = -(
-                        attention_weights * torch.log(attention_weights.clamp_min(1e-8))
-                    ).sum(dim=1).mean()
-                    hack_rates.append(hack_rate.item())
-                    attention_entropies.append(attention_entropy.item())
 
-                # [EVOLUTION: SURROGATE HACKING] Attention weights are differentiable and multiply 
-                # the advantages, exposing the routing mechanism to policy gradients and leading to objective hacking.
-                mb_adv = b_adv[mb]
-                mb_adv_dynamic = (mb_adv * attention_weights).sum(dim=1)
+                mb_adv_dynamic = b_adv_aggregated[mb]
                 if args.norm_adv:
-                    mb_adv_dynamic = (mb_adv_dynamic - mb_adv_dynamic.mean()) / (mb_adv_dynamic.std() + 1e-8)
-
-                pg_loss1 = -mb_adv_dynamic * ratio
-                pg_loss2 = -mb_adv_dynamic * torch.clamp(ratio, 1 - args.clip_coef, 1 + args.clip_coef)
-                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+                    mb_adv_dynamic = (mb_adv_dynamic - mb_adv_dynamic.mean()) / (
+                        mb_adv_dynamic.std() + 1e-8
+                    )
 
                 newval = newval.view(-1, args.num_gammas)
+                v_target = b_ret[mb]
+
+                pg_loss1 = -mb_adv_dynamic * ratio
+                pg_loss2 = -mb_adv_dynamic * torch.clamp(
+                    ratio, 1 - args.clip_coef, 1 + args.clip_coef
+                )
+                pg_loss = torch.max(pg_loss1, pg_loss2).mean()
+
                 if args.clip_vloss:
-                    v_loss_unclipped = (newval - b_ret[mb]) ** 2
+                    v_loss_unclipped = (newval - v_target) ** 2
                     v_clipped = b_val[mb] + torch.clamp(
                         newval - b_val[mb], -args.clip_coef, args.clip_coef
                     )
-                    v_loss_clipped = (v_clipped - b_ret[mb]) ** 2
+                    v_loss_clipped = (v_clipped - v_target) ** 2
                     v_loss_per_head = 0.5 * torch.max(v_loss_unclipped, v_loss_clipped).mean(dim=0)
                 else:
-                    v_loss_per_head = 0.5 * ((newval - b_ret[mb]) ** 2).mean(dim=0)
-                v_loss = v_loss_per_head.mean()
+                    v_loss_per_head = 0.5 * ((newval - v_target) ** 2).mean(dim=0)
+
+                long_v_loss = v_loss_per_head[target_gamma_idx]
+                aux_v_loss = v_loss_per_head[short_gamma_indices].sum()
+                v_loss = long_v_loss + args.lambda_aux * aux_v_loss
 
                 ent_loss = entropy.mean()
                 loss = pg_loss - args.ent_coef * ent_loss + args.vf_coef * v_loss
@@ -295,15 +293,20 @@ def train_one_seed(args: Args):
 
         writer.add_scalar("losses/policy_loss", pg_loss.item(), global_step)
         writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
+        writer.add_scalar("losses/value_loss_long", long_v_loss.item(), global_step)
+        writer.add_scalar("losses/value_loss_aux", aux_v_loss.item(), global_step)
         writer.add_scalar("losses/entropy", ent_loss.item(), global_step)
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
-        writer.add_scalar("diagnostics/hack_rate", np.mean(hack_rates), global_step)
-        writer.add_scalar("diagnostics/attention_entropy", np.mean(attention_entropies), global_step)
+        writer.add_scalar("diagnostics/long_advantage_variance", long_advantage_variance.item(), global_step)
 
         sps = int(global_step / (time.time() - start_time))
         writer.add_scalar("charts/SPS", sps, global_step)
         if update % 10 == 0:
-            print(f"seed={args.seed}, update {update}/{args.num_updates}, SPS={sps}")
+            print(
+                f"lambda_aux={args.lambda_aux} seed={args.seed} "
+                f"update {update}/{args.num_updates} SPS={sps} "
+                f"long_adv_var={long_advantage_variance.item():.6f}"
+            )
 
     envs.close()
     writer.close()
@@ -311,5 +314,9 @@ def train_one_seed(args: Args):
 
 
 if __name__ == "__main__":
-    for seed in [1, 2, 3, 4, 5]:
-        train_one_seed(Args(seed=seed))
+    lambda_aux_values = [0.0, 0.1, 1.0]
+    seeds = [1, 2, 3, 4, 5]
+
+    for lambda_aux in lambda_aux_values:
+        for seed in seeds:
+            run_training(Args(seed=seed, lambda_aux=lambda_aux))

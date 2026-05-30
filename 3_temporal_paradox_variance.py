@@ -4,10 +4,11 @@ Demonstrates the Paradox of Temporal Uncertainty via a gradient-free,
 uncertainty-based routing mechanism (inverse-variance proxy).
 """
 
+import argparse
 import time
 import random
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Optional
 
 import gymnasium as gym
 import numpy as np
@@ -21,6 +22,7 @@ from torch.utils.tensorboard import SummaryWriter
 @dataclass
 class Args:
     exp_name: str = "ppo_multi_gamma_attention"
+    run_name: Optional[str] = None
     seed: int = 1
     torch_deterministic: bool = True
     cuda: bool = True
@@ -50,6 +52,19 @@ class Args:
     batch_size: int = 0
     minibatch_size: int = 0
     num_updates: int = 0
+
+
+def parse_args():
+    args = Args()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--seed", type=int, default=args.seed)
+    parser.add_argument("--run_name", type=str, default=args.run_name)
+    parser.add_argument("--exp_name", type=str, default=args.exp_name)
+    parsed = parser.parse_args()
+    args.seed = parsed.seed
+    args.run_name = parsed.run_name
+    args.exp_name = parsed.exp_name
+    return args
 
 
 def make_env(env_id, idx, seed):
@@ -102,13 +117,13 @@ class ActorCritic(nn.Module):
 
 
 if __name__ == "__main__":
-    args = Args()
+    args = parse_args()
     assert len(args.gammas) == args.num_gammas, "len(args.gammas) must equal args.num_gammas"
     args.batch_size = args.num_envs * args.num_steps
     args.minibatch_size = args.batch_size // args.num_minibatches
     args.num_updates = args.total_timesteps // args.batch_size
 
-    run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
+    run_name = args.run_name or f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
 
     random.seed(args.seed)
     np.random.seed(args.seed)

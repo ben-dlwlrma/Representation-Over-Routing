@@ -306,7 +306,7 @@ if __name__ == "__main__":
 
     # save weights and record GIF
     print("Training finished. Saving model weights...")
-    torch.save(agent.actor.state_dict(), "weights_stage_3.pth")
+    torch.save(agent.actor.state_dict(), "3_temporal_paradox_variance.pth")
 
     print("Starting GIF recording...")
     import imageio

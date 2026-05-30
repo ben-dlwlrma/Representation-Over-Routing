@@ -1,4 +1,4 @@
-# Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO
+# Representation over Routing: Diagnosing Temporal Routing Pathologies in Multi-Timescale PPO
 
 [![License: CC BY 4.0](https://img.shields.io/badge/License-CC_BY_4.0-lightgrey.svg)](https://creativecommons.org/licenses/by/4.0/)
 [![Python 3.8+](https://img.shields.io/badge/python-3.8+-blue.svg)](https://www.python.org/downloads/)
@@ -8,122 +8,137 @@
 [![Hugging Face Model](https://img.shields.io/badge/Hugging%20Face-Model-yellow?logo=huggingface)](https://huggingface.co/ben-dlwlrma/Representation-Over-Routing)
 [![Hugging Face Space](https://img.shields.io/badge/Hugging%20Face-Space-yellow?logo=huggingface)](https://huggingface.co/spaces/ben-dlwlrma/Representation-Over-Routing-Demo)
 
-This repository contains the official codebase, pre-trained weights, and evaluation environments for the preprint: **"Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO"**. We provide a minimal, standalone reproducible example (MRE) using standard MLPs on `LunarLander-v2` to demonstrate the pathology of surrogate hacking and our proposed solution.
+This repository contains the code and lightweight diagnostic assets for the preprint **"Representation over Routing: Diagnosing Temporal Routing Pathologies in Multi-Timescale PPO"**.
+
+The project is a mechanistic diagnostic study of temporal routing failure modes in multi-timescale PPO. The experiments use LunarLander-v2 as a controlled, visually interpretable sandbox rather than as evidence for broad benchmark superiority.
 
 ## Paper
 
-**Representation over Routing: Overcoming Surrogate Hacking in Multi-Timescale PPO**
-
 arXiv: https://arxiv.org/abs/2604.13517
 
-## TL;DR
+The paper PDF and source manuscript are distributed through arXiv. This code repository is not intended to be a manuscript archive.
 
-We identify and formalize two severe optimization pathologies in multi-timescale RL: **Surrogate Objective Hacking** (exploiting short-term shaping rewards at the expense of the true objective) and the **Paradox of Temporal Uncertainty** (irreversible myopic degeneration caused by gradient-free variance routing).
+The current manuscript frames the work around three points:
 
-To overcome these fundamental vulnerabilities, we introduce **Target Decoupling**, a novel architectural and algorithmic intervention that disentangles representation learning from temporal routing, allowing the agent to align with the true long-term objective (γ = 0.999) without collapsing into short-term behavioral traps.
+- Differentiable actor-side temporal routing can expose a scale-mismatch shortcut inside the PPO surrogate.
+- Error-based gradient-free routing can bias the actor toward low-error short-horizon heads.
+- Target Decoupling removes the actor-side routing pathway while keeping multi-horizon critic prediction as auxiliary regularization.
 
-## Visual Proof: The Ablation Journey
+## Method Summary
 
-The core contribution of this work is isolating and systematically solving the pathologies of multi-timescale learning. The comparison between **Stage 1** and **Stage 4** is particularly striking: while the baseline is paralyzed by the fear of crashing and greedy hoarding of small centering rewards, our decoupled agent acts with true foresight.
+The multi-timescale critic predicts values for:
 
-<table width="100%">
-  <tr>
-    <th width="50%" align="center">Stage 1: Baseline</th>
-    <th width="50%" align="center">Stage 2: Surrogate Hacking</th>
-  </tr>
-  <tr>
-    <td><img src="docs/baseline_hovering.gif" width="100%"></td>
-    <td><img src="docs/surrogate_hacking_crash.gif" width="100%"></td>
-  </tr>
-  <tr>
-    <td valign="top"><b>Hovering & Wasting Fuel</b><br>The agent falls into a local optimum. Out of fear of crashing, it hovers endlessly, wasting fuel and failing the main objective just to hoard small, short-term shaping rewards (centering).</td>
-    <td valign="top"><b>Surrogate Objective Hacking</b><br>Attempting to route values dynamically across different timescales via Actor-driven attention leads to gradient exploitation. The policy collapses as it artificially minimizes the surrogate loss by manipulating attention weights rather than improving physical control.</td>
-  </tr>
-  <tr>
-    <th width="50%" align="center">Stage 3: Temporal Paradox</th>
-    <th width="50%" align="center">Stage 4: Target Decoupling</th>
-  </tr>
-  <tr>
-    <td><img src="docs/temporal_paradox_wandering.gif" width="100%"></td>
-    <td><img src="docs/target_decoupling_landing.gif" width="100%"></td>
-  </tr>
-  <tr>
-    <td valign="top"><b>Aimless Wandering</b><br>The agent suffers from temporal uncertainty. Unable to confidently attribute credit over long horizons, it fails to commit to a landing strategy and wanders aimlessly above the landing pad.</td>
-    <td valign="top"><b>Intelligent Landing</b><br>The agent uncovers true intelligence by decoupling the target. It understands the ultimate long-term goal (γ = 0.999) and executes a highly fuel-efficient, safe landing, smartly ignoring the strict need to be perfectly centered if it means saving fuel.</td>
-  </tr>
-</table>
+```text
+gamma = [0.5, 0.9, 0.99, 0.999]
+```
+
+The diagnostic variants test where these heads enter the policy update:
+
+- **Baseline PPO:** single-horizon PPO reference.
+- **Differentiable routing:** an actor-side attention router mixes multi-horizon advantages.
+- **Error-based routing:** routing weights are computed from absolute temporal-difference errors.
+- **Target Decoupling:** the actor uses only the long-horizon advantage, while auxiliary critic heads remain as regularizers.
+
+Target Decoupling is not presented here as a general performance booster. In the reported run set, it acts as a structural separation principle: it removes an exploitable actor-side routing channel and improves the observed worst-seed return and dispersion relative to a strict long-horizon baseline.
 
 ## Repository Structure
 
-The repository is structured to perfectly mirror our 4-stage ablation study. Each stage is completely standalone, strictly utilizing standard MLPs to ensure clarity and ease of reproducibility.
+Expected public repository layout:
 
 ```text
 .
-├── 1_baseline.py                      # Stage 1: Standard PPO Baseline
-├── 2_surrogate_hacking_attention.py   # Stage 2: Introduction of multi-timescale collapse
-├── 3_temporal_paradox_variance.py     # Stage 3: Attempted variance reduction
-├── 4_target_decoupling_final.py       # Stage 4: Proposed Target Decoupling architecture
-├── 5_evaluate_seeds_plot.py           # Multi-seed evaluation and plotting script
-├── record_1_baseline.py               # Evaluation script for Stage 1
-├── record_2_surrogate.py              # Evaluation script for Stage 2
-├── record_3_paradox.py                # Evaluation script for Stage 3
-├── record_4_decoupling.py             # Evaluation script for Stage 4
-├── weights_stage_1.pth                # Pre-trained weights for Baseline
-├── weights_stage_2.pth                # Pre-trained weights for Surrogate Hacking
-├── weights_stage_3.pth                # Pre-trained weights for Temporal Paradox
-├── weights_stage_4.pth                # Pre-trained weights for Target Decoupling
-└── docs/                              # Assets (GIFs, etc.)
-    ├── baseline_hovering.gif
-    ├── seed_comparison_plot.png
-    ├── surrogate_hacking_crash.gif
-    ├── temporal_paradox_wandering.gif
-    └── target_decoupling_landing.gif
+├── 1_baseline.py                         # Single-horizon PPO baseline
+├── 2_surrogate_hacking_attention.py      # Differentiable temporal routing diagnostic
+├── 3_temporal_paradox_variance.py        # Error-based routing diagnostic
+├── 4_target_decoupling_final.py          # Target Decoupling PPO
+├── 5_evaluate_seeds_plot.py              # Baseline vs Target Decoupling seed comparison
+├── 6_ablation_auxiliary_variance.py      # Auxiliary-head weighting ablation
+├── plot_surrogate_hacking_diagnostics.py # Three-panel routing diagnostic plot
+├── plot_error_routing_diagnostic.py      # Error-routing diagnostic plot
+├── plot_and_test.py                      # Auxiliary-variance and return analysis
+├── plot_salvage_return_boxplot.py        # Final-return reliability diagnostic
+├── record_1_baseline.py                  # Render/evaluate Stage 1 checkpoint
+├── record_2_surrogate.py                 # Render/evaluate Stage 2 checkpoint
+├── record_3_paradox.py                   # Render/evaluate Stage 3 checkpoint
+├── record_4_decoupling.py                # Render/evaluate Stage 4 checkpoint
+├── 1_baseline.pth                        # Baseline PPO actor weights
+├── 2_surrogate_hacking_attention.pth     # Differentiable-routing actor weights
+├── 3_temporal_paradox_variance.pth       # Error-based-routing actor weights
+├── 4_target_decoupling_final.pth         # Target Decoupling actor weights
+├── docs/                                 # Selected diagnostic figures
+├── requirements.txt
+└── README.md
 ```
 
-## Quick Start
+Large experimental artifacts are handled separately. The paper source directory, LaTeX build artifacts, raw TensorBoard logs, local editor files, caches, and archived exploratory scripts are not required in the public GitHub package. The small pretrained actor weights are included here for convenience and are also distributed through the Hugging Face model repository linked above.
 
-Evaluating the pre-trained models is designed to be frictionless.
+## Reproducing the Main Diagnostics
 
-1. **Install Dependencies**
-   ```bash
-   pip install -r requirements.txt
-   ```
+Install dependencies:
 
-2. **Evaluate the Proposed Solution (Stage 4)**
-   See the Target Decoupling agent elegantly solve the environment:
-   ```bash
-   python record_4_decoupling.py
-   ```
+```bash
+pip install -r requirements.txt
+```
 
-3. **Observe the Baseline Pathology (Stage 1)**
-   Contrast it by watching the baseline agent frantically hover and waste fuel:
-   ```bash
-   python record_1_baseline.py
-   ```
+Train or regenerate the differentiable-routing diagnostic:
 
-4. **Multi-Seed Evaluation**
-   Run the full comparison across 5 random seeds to reproduce the statistical significance plots:
-   ```bash
-   python 5_evaluate_seeds_plot.py
-   ```
+```bash
+python 2_surrogate_hacking_attention.py
+python plot_surrogate_hacking_diagnostics.py
+```
 
-*Note: You can run any of the standalone `X_*.py` scripts to train the given stage from scratch.*
+Generate the error-based routing diagnostic after the fixed five-seed TensorBoard runs are available locally:
 
-## Statistical Significance
+```bash
+python plot_error_routing_diagnostic.py
+```
 
-To rigorously validate our claims, we evaluate the Target Decoupling architecture against the Baseline over multiple random seeds (n=5). The Target Decoupling agent consistently solves the environment with minimal variance, easily eliminating the failure modes and escaping hovering local optima.
+### Reproducibility: Error-Based Routing Runs
 
-<div align="center">
-  <img src="docs/seed_comparison_plot.png" alt="Seed Comparison Plot" width="80%">
-</div>
+`plot_error_routing_diagnostic.py` uses a fixed set of five TensorBoard runs for the error-based routing diagnostic:
+
+| Seed | Run directory |
+| --- | --- |
+| 1 | `runs/error_routing_seed_1` |
+| 2 | `runs/error_routing_seed_2` |
+| 3 | `runs/error_routing_seed_3` |
+| 4 | `runs/error_routing_seed_4` |
+| 5 | `runs/error_routing_seed_5` |
+
+These runs use the controlled PPO configuration for `LunarLander-v2` and log `charts/episodic_return` plus the `weights/gamma_*` routing weights used by the diagnostic plot. Raw TensorBoard logs are not required in the public GitHub package; if they are absent, use the generated figure in `docs/` or regenerate the runs before calling the plotting script.
+
+Run the auxiliary-head ablation and reliability plots:
+
+```bash
+python 6_ablation_auxiliary_variance.py
+python plot_and_test.py
+python plot_salvage_return_boxplot.py
+```
+
+Evaluate rendered checkpoints with the pretrained actor weights in the repository root:
+
+```bash
+python record_1_baseline.py
+python record_2_surrogate.py
+python record_3_paradox.py
+python record_4_decoupling.py
+```
+
+## Figures
+
+The repository may include selected generated figures for README display and quick inspection:
+
+- `docs/surrogate_hacking_diagnostic_triad.png`: return, HackRate, and attention entropy for differentiable routing.
+- `docs/error_routing_diagnostic.png`: return and routing weights for error-based routing.
+- `docs/salvage_return_boxplot.png`: final-return reliability comparison for strict long-horizon PPO and Target Decoupling.
+
+These figures are intended as diagnostic evidence in a controlled PPO setting. They should not be read as broad claims about all environments or all multi-timescale RL methods.
 
 ## Citation
 
-If you find this code or our insights useful in your research, please consider citing our work:
-
 ```bibtex
-@misc{sunRepresentationRoutingOvercoming2026b,
-  title = {Representation over {{Routing}}: {{Overcoming Surrogate Hacking}} in {{Multi-Timescale PPO}}},
+@misc{sunRepresentationRoutingDiagnosing2026,
+  title = {Representation over {{Routing}}: {{Diagnosing Temporal Routing Pathologies}} in {{Multi-Timescale PPO}}},
   shorttitle = {Representation over {{Routing}}},
   author = {Sun, Jing},
   year = 2026,
