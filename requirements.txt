@@ -3,3 +3,6 @@ numpy
 gymnasium[box2d]
 imageio
 tensorboard
+matplotlib
+scipy
+seaborn

@@ -24,6 +24,18 @@ The current manuscript frames the work around three points:
 - Error-based gradient-free routing can bias the actor toward low-error short-horizon heads.
 - Target Decoupling removes the actor-side routing pathway while keeping multi-horizon critic prediction as auxiliary regularization.
 
+## Qualitative Rollouts
+
+These rollouts show the four diagnostic stages using the released actor checkpoints. They are visual examples for inspecting behavior, not additional benchmark evidence.
+
+| Baseline PPO | Differentiable Routing |
+| --- | --- |
+| ![Baseline PPO hovering rollout](docs/baseline_hovering.gif) | ![Differentiable routing crash rollout](docs/surrogate_hacking_crash.gif) |
+
+| Error-Based Routing | Target Decoupling |
+| --- | --- |
+| ![Error-based routing wandering rollout](docs/temporal_paradox_wandering.gif) | ![Target Decoupling landing rollout](docs/target_decoupling_landing.gif) |
+
 ## Method Summary
 
 The multi-timescale critic predicts values for:
@@ -47,24 +59,29 @@ Expected public repository layout:
 
 ```text
 .
-├── 1_baseline.py                         # Single-horizon PPO baseline
-├── 2_surrogate_hacking_attention.py      # Differentiable temporal routing diagnostic
-├── 3_temporal_paradox_variance.py        # Error-based routing diagnostic
-├── 4_target_decoupling_final.py          # Target Decoupling PPO
-├── 5_evaluate_seeds_plot.py              # Baseline vs Target Decoupling seed comparison
-├── 6_ablation_auxiliary_variance.py      # Auxiliary-head weighting ablation
-├── plot_surrogate_hacking_diagnostics.py # Three-panel routing diagnostic plot
-├── plot_error_routing_diagnostic.py      # Error-routing diagnostic plot
-├── plot_and_test.py                      # Auxiliary-variance and return analysis
-├── plot_salvage_return_boxplot.py        # Final-return reliability diagnostic
-├── record_1_baseline.py                  # Render/evaluate Stage 1 checkpoint
-├── record_2_surrogate.py                 # Render/evaluate Stage 2 checkpoint
-├── record_3_paradox.py                   # Render/evaluate Stage 3 checkpoint
-├── record_4_decoupling.py                # Render/evaluate Stage 4 checkpoint
-├── 1_baseline.pth                        # Baseline PPO actor weights
-├── 2_surrogate_hacking_attention.pth     # Differentiable-routing actor weights
-├── 3_temporal_paradox_variance.pth       # Error-based-routing actor weights
-├── 4_target_decoupling_final.pth         # Target Decoupling actor weights
+├── experiments/                          # Training, diagnostic, and ablation entrypoints
+│   ├── 1_baseline.py
+│   ├── 2_surrogate_hacking_attention.py
+│   ├── 3_temporal_paradox_variance.py
+│   ├── 4_target_decoupling_final.py
+│   ├── 5_evaluate_seeds_plot.py
+│   └── 6_ablation_auxiliary_variance.py
+├── analysis/                             # TensorBoard readers and plotting scripts
+│   ├── plot_surrogate_hacking_diagnostics.py
+│   ├── plot_error_routing_diagnostic.py
+│   ├── plot_and_test.py
+│   └── plot_salvage_return_boxplot.py
+├── scripts/
+│   └── render/                           # Regenerate rendered stage rollouts
+│       ├── record_1_baseline.py
+│       ├── record_2_surrogate.py
+│       ├── record_3_paradox.py
+│       └── record_4_decoupling.py
+├── checkpoints/                          # Small pretrained actor weights
+│   ├── 1_baseline.pth
+│   ├── 2_surrogate_hacking_attention.pth
+│   ├── 3_temporal_paradox_variance.pth
+│   └── 4_target_decoupling_final.pth
 ├── docs/                                 # Selected diagnostic figures
 ├── requirements.txt
 └── README.md
@@ -80,22 +97,34 @@ Install dependencies:
 pip install -r requirements.txt
 ```
 
+Run the commands below from the repository root so that relative paths such as `runs/`, `docs/`, and `checkpoints/` resolve correctly.
+
 Train or regenerate the differentiable-routing diagnostic:
 
 ```bash
-python 2_surrogate_hacking_attention.py
-python plot_surrogate_hacking_diagnostics.py
+python experiments/2_surrogate_hacking_attention.py
+python analysis/plot_surrogate_hacking_diagnostics.py
 ```
 
-Generate the error-based routing diagnostic after the fixed five-seed TensorBoard runs are available locally:
+Train or regenerate the error-based routing diagnostic. The plotting script expects the fixed run names shown below:
 
 ```bash
-python plot_error_routing_diagnostic.py
+python experiments/3_temporal_paradox_variance.py --seed 1 --run_name error_routing_seed_1
+python experiments/3_temporal_paradox_variance.py --seed 2 --run_name error_routing_seed_2
+python experiments/3_temporal_paradox_variance.py --seed 3 --run_name error_routing_seed_3
+python experiments/3_temporal_paradox_variance.py --seed 4 --run_name error_routing_seed_4
+python experiments/3_temporal_paradox_variance.py --seed 5 --run_name error_routing_seed_5
+```
+
+Generate the error-based routing figure after those five TensorBoard runs are available locally:
+
+```bash
+python analysis/plot_error_routing_diagnostic.py
 ```
 
 ### Reproducibility: Error-Based Routing Runs
 
-`plot_error_routing_diagnostic.py` uses a fixed set of five TensorBoard runs for the error-based routing diagnostic:
+`analysis/plot_error_routing_diagnostic.py` uses a fixed set of five TensorBoard runs for the error-based routing diagnostic:
 
 | Seed | Run directory |
 | --- | --- |
@@ -110,18 +139,24 @@ These runs use the controlled PPO configuration for `LunarLander-v2` and log `ch
 Run the auxiliary-head ablation and reliability plots:
 
 ```bash
-python 6_ablation_auxiliary_variance.py
-python plot_and_test.py
-python plot_salvage_return_boxplot.py
+python experiments/6_ablation_auxiliary_variance.py
+python analysis/plot_and_test.py
+python analysis/plot_salvage_return_boxplot.py
 ```
 
-Evaluate rendered checkpoints with the pretrained actor weights in the repository root:
+Run the baseline-vs-decoupling seed comparison:
 
 ```bash
-python record_1_baseline.py
-python record_2_surrogate.py
-python record_3_paradox.py
-python record_4_decoupling.py
+python experiments/5_evaluate_seeds_plot.py
+```
+
+Regenerate rendered rollouts and actor weights:
+
+```bash
+python scripts/render/record_1_baseline.py
+python scripts/render/record_2_surrogate.py
+python scripts/render/record_3_paradox.py
+python scripts/render/record_4_decoupling.py
 ```
 
 ## Figures

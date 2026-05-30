@@ -1,7 +1,7 @@
 """
-record_2_surrogate.py: Multi-timescale PPO rendering evaluation script.
-Demonstrates Surrogate Objective Hacking via a state-dependent attention mechanism 
-exposed to the policy gradients, and records the resulting behavior to a GIF.
+record_4_decoupling.py: Target Decoupling PPO rendering evaluation script.
+Multi-timescale Critic enforces auxiliary representation learning,
+while the Actor uses strictly isolated target decoupling, recording the optimal behavior to a GIF.
 """
 
 import time
@@ -28,7 +28,7 @@ class Args:
     env_id: str = "LunarLander-v2"
     num_envs: int = 8
 
-    total_timesteps: int = 1000000
+    total_timesteps: int = 1_000_000
     num_steps: int = 256
 
     learning_rate: float = 2.5e-4
@@ -89,18 +89,9 @@ class ActorCritic(nn.Module):
             nn.Tanh(),
             layer_init(nn.Linear(64, act_dim), std=0.01),
         )
-        # [EVOLUTION: SURROGATE HACKING] Differentiable attention mechanism added to route multi-timescale signals.
-        self.attention = nn.Sequential(
-            layer_init(nn.Linear(obs_dim, 64)),
-            nn.Tanh(),
-            layer_init(nn.Linear(64, num_gammas), std=0.01),
-        )
 
     def get_value(self, x):
         return self.critic(x)
-
-    def get_attention_weights(self, x):
-        return torch.softmax(self.attention(x), dim=-1)
 
     def get_action_and_value(self, x, action=None):
         logits = self.actor(x)
@@ -240,6 +231,15 @@ if __name__ == "__main__":
 
         b_inds = np.arange(args.batch_size)
         clipfracs = []
+        weight_sums = torch.zeros(args.num_gammas, dtype=torch.float32, device=device)
+        num_minibatch_updates = 0
+
+        with torch.no_grad():
+            # [EVOLUTION: TARGET DECOUPLING] The Actor strictly ignores multi-timescale fusion 
+            # and uses only the longest-horizon advantage (gamma=0.999), forcing the Critic 
+            # to learn multi-scale representations while the Actor optimizes for the true goal.
+            target_gamma_idx = 3 
+            b_adv_aggregated = b_adv[:, target_gamma_idx]
 
         for epoch in range(args.update_epochs):
             np.random.shuffle(b_inds)
@@ -248,34 +248,32 @@ if __name__ == "__main__":
                 mb = b_inds[start:end]
 
                 _, newlogp, entropy, newval = agent.get_action_and_value(b_obs[mb], b_act[mb])
-                attention_weights = agent.get_attention_weights(b_obs[mb])
                 logratio = newlogp - b_logp[mb]
                 ratio = logratio.exp()
 
                 with torch.no_grad():
                     clipfracs.append(((ratio - 1.0).abs() > args.clip_coef).float().mean().item())
 
-                # [EVOLUTION: SURROGATE HACKING] Attention weights are differentiable and multiply 
-                # the advantages, exposing the routing mechanism to policy gradients and leading to objective hacking.
-                mb_adv = b_adv[mb]
-                mb_adv_dynamic = (mb_adv * attention_weights).sum(dim=1)
+                mb_adv_dynamic = b_adv_aggregated[mb]
                 if args.norm_adv:
                     mb_adv_dynamic = (mb_adv_dynamic - mb_adv_dynamic.mean()) / (mb_adv_dynamic.std() + 1e-8)
+
+                newval = newval.view(-1, args.num_gammas)
+                v_target = b_ret[mb]
 
                 pg_loss1 = -mb_adv_dynamic * ratio
                 pg_loss2 = -mb_adv_dynamic * torch.clamp(ratio, 1 - args.clip_coef, 1 + args.clip_coef)
                 pg_loss = torch.max(pg_loss1, pg_loss2).mean()
 
-                newval = newval.view(-1, args.num_gammas)
                 if args.clip_vloss:
-                    v_loss_unclipped = (newval - b_ret[mb]) ** 2
+                    v_loss_unclipped = (newval - v_target) ** 2
                     v_clipped = b_val[mb] + torch.clamp(
                         newval - b_val[mb], -args.clip_coef, args.clip_coef
                     )
-                    v_loss_clipped = (v_clipped - b_ret[mb]) ** 2
+                    v_loss_clipped = (v_clipped - v_target) ** 2
                     v_loss_per_head = 0.5 * torch.max(v_loss_unclipped, v_loss_clipped).mean(dim=0)
                 else:
-                    v_loss_per_head = 0.5 * ((newval - b_ret[mb]) ** 2).mean(dim=0)
+                    v_loss_per_head = 0.5 * ((newval - v_target) ** 2).mean(dim=0)
                 v_loss = v_loss_per_head.mean()
 
                 ent_loss = entropy.mean()
@@ -291,7 +289,7 @@ if __name__ == "__main__":
         writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
         writer.add_scalar("losses/entropy", ent_loss.item(), global_step)
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
-
+        
         sps = int(global_step / (time.time() - start_time))
         writer.add_scalar("charts/SPS", sps, global_step)
         if update % 10 == 0:
@@ -303,7 +301,7 @@ if __name__ == "__main__":
 
     # save weights and record GIF
     print("Training finished. Saving model weights...")
-    torch.save(agent.actor.state_dict(), "2_surrogate_hacking_attention.pth")
+    torch.save(agent.actor.state_dict(), "checkpoints/4_target_decoupling_final.pth")
 
     print("Starting GIF recording...")
     import imageio
@@ -330,5 +328,5 @@ if __name__ == "__main__":
     test_env.close()
 
     # save the GIF
-    imageio.mimsave('recording_stage_2.gif', frames, duration=1000/30, loop=0)
+    imageio.mimsave('recording_stage_4.gif', frames, duration=1000/30, loop=0)
     print("GIF generation complete!")

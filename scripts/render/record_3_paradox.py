@@ -1,7 +1,7 @@
 """
-record_4_decoupling.py: Target Decoupling PPO rendering evaluation script.
-Multi-timescale Critic enforces auxiliary representation learning,
-while the Actor uses strictly isolated target decoupling, recording the optimal behavior to a GIF.
+record_3_paradox.py: Multi-timescale PPO rendering evaluation script.
+Demonstrates the Paradox of Temporal Uncertainty via a gradient-free,
+uncertainty-based routing mechanism (inverse-variance proxy), and records the resulting behavior to a GIF.
 """
 
 import time
@@ -235,11 +235,14 @@ if __name__ == "__main__":
         num_minibatch_updates = 0
 
         with torch.no_grad():
-            # [EVOLUTION: TARGET DECOUPLING] The Actor strictly ignores multi-timescale fusion 
-            # and uses only the longest-horizon advantage (gamma=0.999), forcing the Critic 
-            # to learn multi-scale representations while the Actor optimizes for the true goal.
-            target_gamma_idx = 3 
-            b_adv_aggregated = b_adv[:, target_gamma_idx]
+            # [EVOLUTION: PARADOX OF TEMPORAL UNCERTAINTY] Gradient-free routing using TD error as 
+            # an inverse-variance proxy. This hard-codes a preference for low-variance myopic returns, 
+            # causing the actor to get trapped in local optima.
+            b_td_error_abs = (b_val - b_ret).abs()
+            temperature = 10.0
+            b_weights = torch.softmax(-b_td_error_abs / temperature, dim=1)
+            b_adv_aggregated = (b_adv * b_weights).sum(dim=1)
+            avg_weights = b_weights.mean(dim=0)
 
         for epoch in range(args.update_epochs):
             np.random.shuffle(b_inds)
@@ -289,7 +292,9 @@ if __name__ == "__main__":
         writer.add_scalar("losses/value_loss", v_loss.item(), global_step)
         writer.add_scalar("losses/entropy", ent_loss.item(), global_step)
         writer.add_scalar("losses/clipfrac", np.mean(clipfracs), global_step)
-        
+        for i, gamma in enumerate(args.gammas):
+            writer.add_scalar(f"weights/gamma_{gamma}", avg_weights[i].item(), global_step)
+            
         sps = int(global_step / (time.time() - start_time))
         writer.add_scalar("charts/SPS", sps, global_step)
         if update % 10 == 0:
@@ -301,7 +306,7 @@ if __name__ == "__main__":
 
     # save weights and record GIF
     print("Training finished. Saving model weights...")
-    torch.save(agent.actor.state_dict(), "4_target_decoupling_final.pth")
+    torch.save(agent.actor.state_dict(), "checkpoints/3_temporal_paradox_variance.pth")
 
     print("Starting GIF recording...")
     import imageio
@@ -328,5 +333,5 @@ if __name__ == "__main__":
     test_env.close()
 
     # save the GIF
-    imageio.mimsave('recording_stage_4.gif', frames, duration=1000/30, loop=0)
+    imageio.mimsave('recording_stage_3.gif', frames, duration=1000/30, loop=0)
     print("GIF generation complete!")
